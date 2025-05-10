@@ -8,7 +8,8 @@
     "start": "ts-node src/main.ts",
     "build": "tsc",
     "deploy":"npm i && npm run build",
-    "dev": "npm run build && nodemon src/main.ts"
+    "dev": "npm run build && nodemon src/main.ts",
+    "postinstall": "puppeteer install"
   },
   "keywords": [],
   "author": "Suryansh Shrivastava",
