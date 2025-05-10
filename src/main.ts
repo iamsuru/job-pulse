@@ -17,10 +17,12 @@ app.get(`${rootContext}/health`, (_, res) => {
 
 process.on('unhandledRejection', (reason: any, promise) => {
     console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
 });
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
+    process.exit(1);
 });
 
 app.listen(PORT, async () => {
