@@ -30,6 +30,7 @@ async function autoScroll(page: Page) {
 
 export async function scrapeAndNotify() {
     console.info('Finding job process started');
+
     const browser = await puppeteer.launch({
         headless: true,
         args: [
@@ -38,6 +39,7 @@ export async function scrapeAndNotify() {
             '--disable-blink-features=AutomationControlled',
         ],
     });
+
     const page = await browser.newPage();
 
     await page.setUserAgent(
@@ -53,12 +55,13 @@ export async function scrapeAndNotify() {
     });
 
     console.info('Browser instance created');
-    const jobMap: any = new Map();
+    const jobMap: Map<string, any> = new Map();
+
     try {
         for (const keyword of jobKeywords) {
             try {
-                const encodedKeyword: string = encodeURIComponent(keyword);
-                const searchUrl: string = jobPortalBaseUrl
+                const encodedKeyword = encodeURIComponent(keyword);
+                const searchUrl = jobPortalBaseUrl
                     .replace(':encodedKeyword', encodedKeyword)
                     .replace(':encodedKeyword', encodedKeyword)
                     .replace(':jobExperience', jobExperience);
@@ -89,30 +92,31 @@ export async function scrapeAndNotify() {
                         }))
                 );
 
-                jobsForKeyword.forEach((job: any) => {
+                jobsForKeyword.forEach((job) => {
                     if (job.link && !jobMap.has(job.link)) {
                         jobMap.set(job.link, job);
                     }
                 });
-            } catch (error) {
-                console.error(`Error occurred while searching for keyword: "${keyword}"`, error);
+            } catch (err) {
+                console.error(`Error while searching for "${keyword}":`, err);
             }
         }
 
-        const jobs: any[] = Array.from(jobMap.values());
+        const jobs = Array.from(jobMap.values());
+
         if (jobs.length > 0) {
-            console.info('Found new jobs, updating in database', jobs);
+            console.info('Found new jobs, updating database...');
             const newJobs = await storeNewJobs(jobs);
             if (newJobs.length > 0) {
                 sendJobNotification(newJobs);
             } else {
-                console.info('No new job founds for sending email')
+                console.info('No new job found to send notifications.');
             }
         } else {
-            console.log('No matching jobs found for any keyword');
+            console.info('No matching jobs found.');
         }
-    } catch (error) {
-        console.error('Error during scraping:', error);
+    } catch (err) {
+        console.error('Unhandled scraping error:', err);
     } finally {
         await browser.close();
         console.info('Browser closed');
