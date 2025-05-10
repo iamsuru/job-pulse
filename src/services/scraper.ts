@@ -7,7 +7,6 @@ const jobKeywords: string[] = config.JOB_KEYWORDS;
 const jobExperience: string = config.JOB_EXPERIENCE;
 const jobPortalBaseUrl: string = config.JOB_PORTAL_BASE_URL;
 const puppeteerTimeout: number = config.PUPPETER_TIMEOUT;
-const puppeteerExecutablePath: string = config.PUPPETEER_CACHE_DIR
 
 async function autoScroll(page: Page) {
     await page.evaluate(async () => {
@@ -38,8 +37,7 @@ export async function scrapeAndNotify() {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-blink-features=AutomationControlled',
-        ],
-        executablePath: puppeteerExecutablePath
+        ]
     });
 
     const page = await browser.newPage();
