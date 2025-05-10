@@ -1,4 +1,4 @@
-import puppeteer, { Page } from 'puppeteer';
+import puppeteer, { executablePath, Page } from 'puppeteer';
 import { config } from '../config/env';
 import { storeNewJobs } from './database.service';
 import { sendJobNotification } from './notifier';
@@ -37,7 +37,8 @@ export async function scrapeAndNotify() {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-blink-features=AutomationControlled',
-        ]
+        ],
+        executablePath: executablePath()
     });
 
     const page = await browser.newPage();
