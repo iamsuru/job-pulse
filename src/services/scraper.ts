@@ -54,41 +54,42 @@ export async function scrapeAndNotify() {
         ignoreDefaultArgs: ['--disable-extensions']
     });
 
-    const page = await browser.newPage();
-
-    await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    );
-
-    await page.setExtraHTTPHeaders({
-        'Accept-Language': 'en-US,en;q=0.9',
-    });
-
-    await page.evaluateOnNewDocument(() => {
-        Object.defineProperty(navigator, 'webdriver', { get: () => false });
-    });
-
     console.info('Browser instance created');
+
     const jobMap: Map<string, any> = new Map();
 
     try {
-        console.info('Started searching for job')
-        for (const keyword of jobKeywords) {
+        console.info('Started searching for jobs...');
+
+        const keywordTasks = jobKeywords.map(async (keyword) => {
             const encodedKeyword = encodeURIComponent(keyword);
             const searchUrl = jobPortalBaseUrl
                 .replace(':encodedKeyword', encodedKeyword)
                 .replace(':encodedKeyword', encodedKeyword)
                 .replace(':jobExperience', jobExperience);
 
+            const page = await browser.newPage();
+
             try {
+                await page.setUserAgent(
+                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                );
+
+                await page.setExtraHTTPHeaders({
+                    'Accept-Language': 'en-US,en;q=0.9',
+                });
+
+                await page.evaluateOnNewDocument(() => {
+                    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                });
+
                 const response = await page.goto(searchUrl, {
                     waitUntil: 'domcontentloaded',
                     timeout: puppeteerTimeout,
                 });
 
                 if (!response || !response.ok()) {
-                    console.warn(`Failed to load page for keyword "${keyword}", status: ${response?.status()}`);
-                    continue;
+                    throw new Error(`Failed to load page for keyword "${keyword}", status: ${response?.status()}`);
                 }
 
                 await page.waitForSelector('#listContainer > div.styles_job-listing-container__OCfZC', {
@@ -103,22 +104,39 @@ export async function scrapeAndNotify() {
                         jobMap.set(job.link, job);
                     }
                 });
-            } catch (err) {
-                console.error(`Error scraping jobs for "${keyword}":`, err);
+
+                await page.close();
+
+                return { keyword, success: true };
+            } catch (error) {
+                await page.close();
+                return { keyword, success: false, error };
             }
-        }
+        });
+
+        const results = await Promise.allSettled(keywordTasks);
+
+        results.forEach((result) => {
+            if (result.status === 'fulfilled') {
+                if (!result.value.success) {
+                    console.error(`Failed for "${result.value.keyword}":`, result.value.error);
+                }
+            } else {
+                console.error('Unhandled rejection in keyword task:', result.reason);
+            }
+        });
 
         const jobs = Array.from(jobMap.values());
 
         if (jobs.length > 0) {
             console.info(`Found ${jobs.length} jobs, updating new ones in DB...`);
-            // const newJobs = await storeNewJobs(jobs);
-            // if (newJobs.length > 0) {
-            // console.info(`Sending notifications for ${newJobs.length} new jobs.`);
-            sendJobNotification(jobs);
-            // } else {
-            //     console.info('No new jobs found to notify.');
-            // }
+            const newJobs = await storeNewJobs(jobs);
+            if (newJobs.length > 0) {
+                console.info(`Sending notifications for ${newJobs.length} new jobs.`);
+                await sendJobNotification(newJobs);
+            } else {
+                console.info('No new jobs found to notify.');
+            }
         } else {
             console.info('No matching jobs found.');
         }
