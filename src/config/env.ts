@@ -16,7 +16,6 @@ assert(process.env.NOTIFY_EMAIL, 'Missing NOTIFY_EMAIL')
 assert(process.env.NOTIFY_APP_KEY, 'Missing NOTIFY_APP_KEY')
 assert(process.env.RECIPIENT_EMAILS, 'Missing RECIPIENT_EMAILS')
 assert(process.env.CRON_TIME, 'Missing CRON_TIME')
-assert(process.env.PUPPETEER_CACHE_DIR, 'Missing PUPPETEER_CACHE_DIR')
 
 export const config = {
     PORT: Number(process.env.PORT),
@@ -32,5 +31,4 @@ export const config = {
     NOTIFY_APP_KEY: process.env.NOTIFY_APP_KEY,
     RECIPIENT_EMAILS: process.env.RECIPIENT_EMAILS.split(',').map(k => k.trim()),
     CRON_TIME: process.env.CRON_TIME,
-    PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
 };
