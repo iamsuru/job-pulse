@@ -28,6 +28,19 @@ async function autoScroll(page: Page) {
     });
 }
 
+async function extractJobsFromPage(page: Page): Promise<any[]> {
+    return await page.$$eval(
+        '#listContainer > div.styles_job-listing-container__OCfZC > div > div',
+        (nodes) =>
+            nodes.map((el) => ({
+                title: el.querySelector('a.title')?.textContent?.trim() || '',
+                company: el.querySelector('.comp-name')?.textContent?.trim() || '',
+                link: el.querySelector('a.title')?.getAttribute('href') || '',
+                experience: el.querySelector('.ni-job-tuple-icon-srp-experience .expwdth')?.textContent?.trim() || '',
+            }))
+    );
+}
+
 export async function scrapeAndNotify() {
     console.info('Finding job process started');
 
@@ -59,21 +72,23 @@ export async function scrapeAndNotify() {
     const jobMap: Map<string, any> = new Map();
 
     try {
+        console.info('Started searching for job')
         for (const keyword of jobKeywords) {
-            try {
-                const encodedKeyword = encodeURIComponent(keyword);
-                const searchUrl = jobPortalBaseUrl
-                    .replace(':encodedKeyword', encodedKeyword)
-                    .replace(':encodedKeyword', encodedKeyword)
-                    .replace(':jobExperience', jobExperience);
+            const encodedKeyword = encodeURIComponent(keyword);
+            const searchUrl = jobPortalBaseUrl
+                .replace(':encodedKeyword', encodedKeyword)
+                .replace(':encodedKeyword', encodedKeyword)
+                .replace(':jobExperience', jobExperience);
 
+            try {
                 const response = await page.goto(searchUrl, {
                     waitUntil: 'domcontentloaded',
                     timeout: puppeteerTimeout,
                 });
 
                 if (!response || !response.ok()) {
-                    throw new Error(`Failed to load page, status: ${response?.status()}`);
+                    console.warn(`Failed to load page for keyword "${keyword}", status: ${response?.status()}`);
+                    continue;
                 }
 
                 await page.waitForSelector('#listContainer > div.styles_job-listing-container__OCfZC', {
@@ -82,42 +97,33 @@ export async function scrapeAndNotify() {
 
                 await autoScroll(page);
 
-                const jobsForKeyword = await page.$$eval(
-                    '#listContainer > div.styles_job-listing-container__OCfZC > div > div',
-                    (nodes) =>
-                        nodes.map((el) => ({
-                            title: el.querySelector('a.title')?.textContent?.trim(),
-                            company: el.querySelector('.comp-name')?.textContent?.trim(),
-                            link: el.querySelector('a.title')?.getAttribute('href'),
-                            experience: el.querySelector('.ni-job-tuple-icon-srp-experience .expwdth')?.textContent?.trim(),
-                        }))
-                );
-
-                jobsForKeyword.forEach((job) => {
+                const jobs = await extractJobsFromPage(page);
+                jobs.forEach((job) => {
                     if (job.link && !jobMap.has(job.link)) {
                         jobMap.set(job.link, job);
                     }
                 });
             } catch (err) {
-                console.error(`Error while searching for "${keyword}":`, err);
+                console.error(`Error scraping jobs for "${keyword}":`, err);
             }
         }
 
         const jobs = Array.from(jobMap.values());
 
         if (jobs.length > 0) {
-            console.info('Found new jobs, updating database...');
-            const newJobs = await storeNewJobs(jobs);
-            if (newJobs.length > 0) {
-                sendJobNotification(newJobs);
-            } else {
-                console.info('No new job found to send notifications.');
-            }
+            console.info(`Found ${jobs.length} jobs, updating new ones in DB...`);
+            // const newJobs = await storeNewJobs(jobs);
+            // if (newJobs.length > 0) {
+            // console.info(`Sending notifications for ${newJobs.length} new jobs.`);
+            sendJobNotification(jobs);
+            // } else {
+            //     console.info('No new jobs found to notify.');
+            // }
         } else {
             console.info('No matching jobs found.');
         }
     } catch (err) {
-        console.error('Unhandled scraping error:', err);
+        console.error('Unhandled error during scraping:', err);
     } finally {
         await browser.close();
         console.info('Browser closed');
