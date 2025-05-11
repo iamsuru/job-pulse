@@ -38,6 +38,7 @@ export async function scrapeAndNotify() {
             '--disable-setuid-sandbox',
             '--disable-blink-features=AutomationControlled',
         ],
+        ignoreDefaultArgs: ['--disable-extensions']
     });
 
     const page = await browser.newPage();
