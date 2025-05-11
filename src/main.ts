@@ -1,6 +1,6 @@
 import express from 'express';
 import { config } from './config/env';
-import { scrapeAndNotify } from './services/scraper';
+import { scheduleJobScraper } from './scheduler/cron';
 
 const app = express();
 const PORT: number = config.PORT;
@@ -25,7 +25,7 @@ process.on('uncaughtException', (err) => {
     process.exit(1);
 });
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
     console.log(`🚀 Job-Pulse server running on port ${PORT}`);
-    scrapeAndNotify();
+    scheduleJobScraper();
 });
